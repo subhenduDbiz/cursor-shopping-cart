@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/dress-shop
+      - JWT_SECRET=your_production_jwt_secret_key_here
+      - REACT_APP_API_BASE_URL=http://localhost:5000
+      - MAX_FILE_SIZE=5242880
+      - UPLOAD_PATH=uploads/profile-images
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data: 
