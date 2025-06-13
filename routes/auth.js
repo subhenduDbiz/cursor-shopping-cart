@@ -187,4 +187,36 @@ router.get('/user', async (req, res) => {
     }
 });
 
+// @route   GET api/auth/me
+// @desc    Get current user data
+// @access  Private
+router.get('/me', async (req, res) => {
+    try {
+        // Get token from header
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        
+        if (!token) {
+            return res.status(401).json({ message: 'No token, authorization denied' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Get user data
+        const user = await User.findById(decoded.user.id).select('-password');
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (err) {
+        console.error('Error in /me route:', err.message);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Token is not valid' });
+        }
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 module.exports = router; 
