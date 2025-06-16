@@ -1,66 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { FaShoppingCart, FaUser, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
 const Navbar = () => {
-  const token = localStorage.getItem('token');
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading, logout, fetchUserData } = useAuth();
 
+  // Fetch user data when component mounts
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (token) {
-        try {
-          const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            // If token is invalid, clear it
-            localStorage.removeItem('token');
-            setUser(null);
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          localStorage.removeItem('token');
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    };
-
-    fetchUserData();
-
-    // Add event listener for storage changes
-    const handleStorageChange = (e) => {
-      if (e.key === 'token') {
-        fetchUserData();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [token]);
+    const token = localStorage.getItem('token');
+    if (token && !user) {
+      fetchUserData();
+    }
+  }, [user, fetchUserData]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+    logout();
     navigate('/login');
+  };
+
+  const getProfileImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${process.env.REACT_APP_API_BASE_URL}${imagePath}`;
   };
 
   const navStyle = {
     padding: '16px 24px',
-    background: '#1976d2',
+    background: '#1a202c',
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
-    gap: '24px',
+    justifyContent: 'space-between',
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
   };
 
@@ -69,39 +41,29 @@ const Navbar = () => {
     textDecoration: 'none',
     padding: '8px 12px',
     borderRadius: '4px',
-    transition: 'background-color 0.2s',
-    ':hover': {
-      backgroundColor: 'rgba(255,255,255,0.1)'
-    }
-  };
-
-  const brandStyle = {
-    ...linkStyle,
-    fontWeight: 'bold',
-    fontSize: '1.2em',
-    marginRight: 'auto'
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   };
 
   const buttonStyle = {
     background: 'transparent',
-    border: 'none',
+    border: '1px solid #fff',
     color: '#fff',
     cursor: 'pointer',
-    padding: '8px 12px',
+    padding: '8px 16px',
     borderRadius: '4px',
-    transition: 'background-color 0.2s',
-    ':hover': {
-      backgroundColor: 'rgba(255,255,255,0.1)'
-    }
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   };
 
   const userProfileStyle = {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '8px 12px',
-    borderRadius: '4px',
-    backgroundColor: 'rgba(255,255,255,0.1)'
+    gap: '12px'
   };
 
   const profileImageStyle = {
@@ -112,46 +74,58 @@ const Navbar = () => {
     border: '2px solid #fff'
   };
 
-  const getProfileImageUrl = (profileImage) => {
-    if (!profileImage) {
-      return `${process.env.REACT_APP_API_BASE_URL}/uploads/profile-images/default-avatar.png`;
+  const renderAuthButtons = () => {
+    if (isLoading) {
+      return null;
     }
-    return `${process.env.REACT_APP_API_BASE_URL}${profileImage}`;
+
+    if (user) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Link to="/cart" style={linkStyle}>
+            <FaShoppingCart /> Cart
+          </Link>
+          <div style={userProfileStyle}>
+            {user.profileImage && (
+              <img 
+                src={getProfileImageUrl(user.profileImage)} 
+                alt={user.name} 
+                style={profileImageStyle}
+              />
+            )}
+            <span>Welcome, {user.name}</span>
+          </div>
+          <Link to="/my-account" style={linkStyle}>
+            <FaUser /> My Account
+          </Link>
+          <button onClick={handleLogout} style={buttonStyle}>
+            Logout
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <Link to="/login" style={buttonStyle}>
+          <FaSignInAlt /> Login
+        </Link>
+        <Link to="/register" style={buttonStyle}>
+          <FaUserPlus /> Register
+        </Link>
+      </div>
+    );
   };
 
   return (
     <nav style={navStyle}>
-      <Link to="/" style={brandStyle}>Dress Shop</Link>
-      
-      <div style={{ display: 'flex', gap: '16px', marginRight: 'auto' }}>
-        <Link to="/?category=men" style={linkStyle}>Men's Collection</Link>
-        <Link to="/?category=women" style={linkStyle}>Women's Collection</Link>
-        <Link to="/deals" style={linkStyle}>Special Deals</Link>
-      </div>
-
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        <Link to="/cart" style={linkStyle}>Cart</Link>
-        {!isLoading && (
-          token && user ? (
-            <>
-              <div style={userProfileStyle}>
-                <img 
-                  src={getProfileImageUrl(user.profileImage)} 
-                  alt="Profile" 
-                  style={profileImageStyle}
-                />
-                <span>Welcome, {user.name}</span>
-              </div>
-              <Link to="/my-account" style={linkStyle}>My Account</Link>
-              <button onClick={handleLogout} style={buttonStyle}>Logout</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={linkStyle}>Login</Link>
-              <Link to="/register" style={linkStyle}>Register</Link>
-            </>
-          )
-        )}
+      <Link to="/" style={{ ...linkStyle, fontSize: '1.5rem', fontWeight: 'bold' }}>
+        Dress Shop
+      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+        <Link to="/" style={linkStyle}>Home</Link>
+        <Link to="/deals" style={linkStyle}>Deals</Link>
+        {renderAuthButtons()}
       </div>
     </nav>
   );

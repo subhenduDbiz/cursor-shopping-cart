@@ -1,24 +1,22 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/auth/login`, { email, password });
-      localStorage.setItem('token', res.data.token);
-      // Dispatch a storage event to notify other components
-      window.dispatchEvent(new Event('storage'));
+      await login(email, password);
       setError('');
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials');
+      setError(err.message || 'Invalid credentials');
     }
   };
 
@@ -26,12 +24,41 @@ const Login = () => {
     <div style={{ padding: 20 }}>
       <h2>Login</h2>
       <form onSubmit={handleSubmit} style={{ maxWidth: 300 }}>
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', marginBottom: 10 }} />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%', marginBottom: 10 }} />
-        <button type="submit">Login</button>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        <input 
+          type="email" 
+          placeholder="Email" 
+          value={email} 
+          onChange={e => setEmail(e.target.value)} 
+          required 
+          style={{ width: '100%', marginBottom: 10, padding: '8px' }} 
+        />
+        <input 
+          type="password" 
+          placeholder="Password" 
+          value={password} 
+          onChange={e => setPassword(e.target.value)} 
+          required 
+          style={{ width: '100%', marginBottom: 10, padding: '8px' }} 
+        />
+        <button 
+          type="submit"
+          style={{
+            width: '100%',
+            padding: '10px',
+            backgroundColor: '#1a202c',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Login
+        </button>
+        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
       </form>
-      <p>Don't have an account? <Link to="/register">Register</Link></p>
+      <p style={{ marginTop: '20px' }}>
+        Don't have an account? <Link to="/register" style={{ color: '#1a202c' }}>Register</Link>
+      </p>
     </div>
   );
 };

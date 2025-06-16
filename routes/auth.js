@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
+const auth = require('../middleware/auth');
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -64,10 +65,7 @@ router.post('/register', upload.single('profileImage'), [
             profileImage: req.file ? `/uploads/profile-images/${req.file.filename}` : undefined
         });
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
-
+        // Save user (password will be hashed by the pre-save middleware)
         await user.save();
 
         const payload = {
@@ -216,6 +214,40 @@ router.get('/me', async (req, res) => {
             return res.status(401).json({ message: 'Token is not valid' });
         }
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   PUT api/auth/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', auth, upload.single('profileImage'), async (req, res) => {
+    try {
+        const { name, email, mobileNumber } = req.body;
+        const userId = req.user.id;
+
+        // Find user
+        let user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update user fields
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (mobileNumber) user.mobileNumber = mobileNumber;
+        if (req.file) {
+            user.profileImage = `/uploads/profile-images/${req.file.filename}`;
+        }
+
+        // Save updated user
+        await user.save();
+
+        // Return updated user data (excluding password)
+        const updatedUser = await User.findById(userId).select('-password');
+        res.json(updatedUser);
+    } catch (err) {
+        console.error('Profile update error:', err.message);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

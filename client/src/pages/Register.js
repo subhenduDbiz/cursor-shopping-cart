@@ -1,39 +1,40 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
     const navigate = useNavigate();
+    const { register } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
+        confirmPassword: '',
         mobileNumber: '',
         profileImage: null
     });
-    const [error, setError] = useState('');
+    const [previewImage, setPreviewImage] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState('');
+    const [error, setError] = useState('');
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
+    const handleInputChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
     };
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setFormData(prevState => ({
-                ...prevState,
+            setFormData(prev => ({
+                ...prev,
                 profileImage: file
             }));
             // Create preview URL
             const reader = new FileReader();
             reader.onloadend = () => {
-                setPreviewUrl(reader.result);
+                setPreviewImage(reader.result);
             };
             reader.readAsDataURL(file);
         }
@@ -44,8 +45,14 @@ const Register = () => {
         setError('');
         setLoading(true);
 
+        // Validate passwords match
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            setLoading(false);
+            return;
+        }
+
         try {
-            // Create FormData object to handle file upload
             const formDataToSend = new FormData();
             formDataToSend.append('name', formData.name);
             formDataToSend.append('email', formData.email);
@@ -55,216 +62,228 @@ const Register = () => {
                 formDataToSend.append('profileImage', formData.profileImage);
             }
 
-            const response = await axios.post(
-                `${process.env.REACT_APP_API_BASE_URL}/api/auth/register`,
-                formDataToSend,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
-                }
-            );
-
-            if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
-                navigate('/');
-            }
+            await register(formDataToSend);
+            navigate('/my-account');
         } catch (err) {
-            // Display the exact error message from the server
-            const errorMessage = err.response?.data?.msg || err.response?.data?.message || 'Registration failed';
-            setError(errorMessage);
-            console.error('Registration error:', err.response?.data);
+            console.error('Registration error:', err);
+            if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+                // Handle validation errors
+                const errorMessages = err.response.data.errors.map(error => error.msg).join(', ');
+                setError(errorMessages);
+            } else if (err.response?.data?.message) {
+                setError(err.response.data.message);
+            } else {
+                setError('Registration failed. Please try again.');
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const styles = {
+        container: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '100vh',
+            padding: '20px',
+            backgroundColor: '#f5f5f5'
+        },
+        formContainer: {
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '500px'
+        },
+        title: {
+            textAlign: 'center',
+            marginBottom: '20px',
+            color: '#333'
+        },
+        form: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
+        },
+        formGroup: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px'
+        },
+        label: {
+            fontSize: '14px',
+            color: '#333',
+            fontWeight: '500'
+        },
+        input: {
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px'
+        },
+        submitButton: {
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            padding: '12px',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '500',
+            marginTop: '10px',
+            ':hover': {
+                backgroundColor: '#45a049'
+            }
+        },
+        loginLink: {
+            textAlign: 'center',
+            marginTop: '20px',
+            color: '#666'
+        },
+        link: {
+            color: '#4CAF50',
+            textDecoration: 'none',
+            fontWeight: '500',
+            ':hover': {
+                textDecoration: 'underline'
+            }
+        },
+        errorContainer: {
+            backgroundColor: '#ffebee',
+            color: '#c62828',
+            padding: '10px',
+            borderRadius: '4px',
+            marginBottom: '20px',
+            fontSize: '14px'
+        },
+        imageUploadContainer: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px'
+        },
+        profileImage: {
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            objectFit: 'cover'
+        },
+        fileInput: {
+            width: '100%',
+            padding: '10px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            fontSize: '14px'
         }
     };
 
     return (
         <div style={styles.container}>
             <div style={styles.formContainer}>
-                <h2 style={styles.title}>Register</h2>
+                <h2 style={styles.title}>Create an Account</h2>
+                
                 {error && (
                     <div style={styles.errorContainer}>
-                        <div style={styles.errorIcon}>!</div>
-                        <div style={styles.error}>{error}</div>
+                        {error}
                     </div>
                 )}
+
                 <form onSubmit={handleSubmit} style={styles.form}>
                     <div style={styles.formGroup}>
-                        <label htmlFor="name">Name</label>
+                        <label style={styles.label}>Profile Image</label>
+                        <div style={styles.imageUploadContainer}>
+                            <img 
+                                src={previewImage || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'} 
+                                alt="Profile Preview" 
+                                style={styles.profileImage}
+                            />
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                style={styles.fileInput}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                        <label style={styles.label}>Name</label>
                         <input
                             type="text"
-                            id="name"
                             name="name"
                             value={formData.name}
-                            onChange={handleChange}
-                            required
+                            onChange={handleInputChange}
                             style={styles.input}
+                            required
                         />
                     </div>
+
                     <div style={styles.formGroup}>
-                        <label htmlFor="email">Email</label>
+                        <label style={styles.label}>Email</label>
                         <input
                             type="email"
-                            id="email"
                             name="email"
                             value={formData.email}
-                            onChange={handleChange}
-                            required
+                            onChange={handleInputChange}
                             style={styles.input}
+                            required
                         />
                     </div>
+
                     <div style={styles.formGroup}>
-                        <label htmlFor="mobileNumber">Mobile Number</label>
+                        <label style={styles.label}>Mobile Number</label>
                         <input
                             type="tel"
-                            id="mobileNumber"
                             name="mobileNumber"
                             value={formData.mobileNumber}
-                            onChange={handleChange}
-                            required
-                            pattern="[0-9]{10}"
-                            title="Please enter a valid 10-digit mobile number"
+                            onChange={handleInputChange}
                             style={styles.input}
+                            placeholder="Enter 10-digit mobile number"
+                            required
                         />
                     </div>
+
                     <div style={styles.formGroup}>
-                        <label htmlFor="password">Password</label>
+                        <label style={styles.label}>Password</label>
                         <input
                             type="password"
-                            id="password"
                             name="password"
                             value={formData.password}
-                            onChange={handleChange}
-                            required
+                            onChange={handleInputChange}
                             style={styles.input}
+                            required
                         />
                     </div>
+
                     <div style={styles.formGroup}>
-                        <label htmlFor="profileImage">Profile Image</label>
+                        <label style={styles.label}>Confirm Password</label>
                         <input
-                            type="file"
-                            id="profileImage"
-                            name="profileImage"
-                            onChange={handleImageChange}
-                            accept="image/*"
-                            style={styles.fileInput}
+                            type="password"
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            style={styles.input}
+                            required
                         />
-                        {previewUrl && (
-                            <div style={styles.imagePreview}>
-                                <img 
-                                    src={previewUrl} 
-                                    alt="Profile preview" 
-                                    style={styles.previewImage}
-                                />
-                            </div>
-                        )}
                     </div>
-                    <button 
-                        type="submit" 
+
+                    <button
+                        type="submit"
                         disabled={loading}
-                        style={styles.button}
+                        style={styles.submitButton}
                     >
-                        {loading ? 'Registering...' : 'Register'}
+                        {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
+
+                <p style={styles.loginLink}>
+                    Already have an account? <Link to="/login" style={styles.link}>Login here</Link>
+                </p>
             </div>
         </div>
     );
-};
-
-const styles = {
-    container: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        padding: '20px',
-        backgroundColor: '#f5f5f5'
-    },
-    formContainer: {
-        backgroundColor: 'white',
-        padding: '30px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        width: '100%',
-        maxWidth: '400px'
-    },
-    title: {
-        textAlign: 'center',
-        marginBottom: '20px',
-        color: '#333'
-    },
-    form: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px'
-    },
-    formGroup: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '5px'
-    },
-    input: {
-        padding: '10px',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        fontSize: '16px'
-    },
-    fileInput: {
-        padding: '10px',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        fontSize: '16px'
-    },
-    button: {
-        padding: '12px',
-        backgroundColor: '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        fontSize: '16px',
-        cursor: 'pointer',
-        ':hover': {
-            backgroundColor: '#0056b3'
-        }
-    },
-    errorContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        backgroundColor: '#ffebee',
-        padding: '12px',
-        borderRadius: '4px',
-        marginBottom: '20px',
-        border: '1px solid #ffcdd2'
-    },
-    errorIcon: {
-        backgroundColor: '#f44336',
-        color: 'white',
-        width: '24px',
-        height: '24px',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: '12px',
-        fontWeight: 'bold'
-    },
-    error: {
-        color: '#d32f2f',
-        fontSize: '14px',
-        flex: 1
-    },
-    imagePreview: {
-        marginTop: '10px',
-        textAlign: 'center'
-    },
-    previewImage: {
-        maxWidth: '150px',
-        maxHeight: '150px',
-        borderRadius: '50%',
-        objectFit: 'cover'
-    }
 };
 
 export default Register; 

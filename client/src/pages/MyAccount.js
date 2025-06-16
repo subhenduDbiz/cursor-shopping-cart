@@ -1,91 +1,177 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import OrderHistory from '../components/OrderHistory';
 
 const MyAccount = () => {
+    const { user, updateProfile, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('profile');
-    const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
     const [formData, setFormData] = useState({
-        name: user?.name || '',
-        email: user?.email || '',
+        name: '',
+        email: '',
+        mobileNumber: '',
+        profileImage: null
+    });
+    const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
+
+    // Update form data when user data changes
+    useEffect(() => {
+        if (user) {
+            setFormData({
+                name: user.name || '',
+                email: user.email || '',
+                mobileNumber: user.mobileNumber || '',
+                profileImage: null
+            });
+            setPreviewImage(user.profileImage || null);
+        }
+    }, [user]);
 
     const handleInputChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setFormData(prev => ({
+                ...prev,
+                profileImage: file
+            }));
+            // Create preview URL
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewImage(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
+        setError('');
+        setMessage('');
+
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/users/profile`, {
-                name: formData.name,
-                email: formData.email
-            }, {
-                headers: {
-                    'x-auth-token': token
-                }
-            });
-            setUser(response.data);
-            localStorage.setItem('user', JSON.stringify(response.data));
+            setIsLoading(true);
+            const formDataToSend = new FormData();
+            formDataToSend.append('name', formData.name);
+            formDataToSend.append('email', formData.email);
+            formDataToSend.append('mobileNumber', formData.mobileNumber);
+            if (formData.profileImage) {
+                formDataToSend.append('profileImage', formData.profileImage);
+            }
+
+            await updateProfile(formDataToSend);
             setMessage('Profile updated successfully');
-            setError('');
+            
+            // Reset form data but keep the updated values
+            setFormData(prev => ({
+                ...prev,
+                profileImage: null
+            }));
         } catch (err) {
-            setError(err.response?.data?.message || 'Error updating profile');
-            setMessage('');
+            console.error('Profile update error:', err);
+            if (err.message.includes('session has expired')) {
+                setError(err.message);
+                setTimeout(() => {
+                    logout();
+                    navigate('/login');
+                }, 2000);
+            } else {
+                setError(err.message || 'Failed to update profile');
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handlePasswordChange = async (e) => {
         e.preventDefault();
-        if (formData.newPassword !== formData.confirmPassword) {
+        setError('');
+        setMessage('');
+
+        // Validate passwords
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
             setError('New passwords do not match');
             return;
         }
+
+        if (passwordData.newPassword.length < 6) {
+            setError('New password must be at least 6 characters long');
+            return;
+        }
+
         try {
+            setIsLoading(true);
             const token = localStorage.getItem('token');
-            await axios.put(`${process.env.REACT_APP_API_BASE_URL}/api/users/password`, {
-                currentPassword: formData.currentPassword,
-                newPassword: formData.newPassword
-            }, {
-                headers: {
-                    'x-auth-token': token
+            const response = await axios.put(
+                `${process.env.REACT_APP_API_BASE_URL}/api/auth/change-password`,
+                {
+                    currentPassword: passwordData.currentPassword,
+                    newPassword: passwordData.newPassword
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
                 }
-            });
+            );
+
             setMessage('Password updated successfully');
-            setError('');
-            setFormData({
-                ...formData,
+            setPasswordData({
                 currentPassword: '',
                 newPassword: '',
                 confirmPassword: ''
             });
         } catch (err) {
-            setError(err.response?.data?.message || 'Error updating password');
-            setMessage('');
+            console.error('Password change error:', err);
+            setError(err.response?.data?.message || 'Failed to change password');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        logout();
         navigate('/login');
     };
+
+    const getProfileImageUrl = (imagePath) => {
+        if (!imagePath) return `${process.env.REACT_APP_API_BASE_URL}/uploads/profile-images/default-avatar.png`;
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${process.env.REACT_APP_API_BASE_URL}${imagePath}`;
+    };
+
+    if (!user) {
+        return <div style={styles.loading}>Loading...</div>;
+    }
 
     return (
         <div style={styles.container}>
             <div style={styles.sidebar}>
                 <h2 style={styles.sidebarTitle}>My Account</h2>
+                <div style={styles.profileImageContainer}>
+                    <img 
+                        src={getProfileImageUrl(user.profileImage)} 
+                        alt="Profile" 
+                        style={styles.profileImage}
+                    />
+                </div>
                 <button
                     style={{
                         ...styles.sidebarButton,
@@ -121,6 +207,22 @@ const MyAccount = () => {
                         <h2 style={styles.title}>Profile Information</h2>
                         <form onSubmit={handleProfileUpdate} style={styles.form}>
                             <div style={styles.formGroup}>
+                                <label style={styles.label}>Profile Image</label>
+                                <div style={styles.imageContainer}>
+                                    <img 
+                                        src={previewImage || getProfileImageUrl(user.profileImage)} 
+                                        alt="Profile" 
+                                        style={styles.profileImage}
+                                    />
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        style={styles.fileInput}
+                                    />
+                                </div>
+                            </div>
+                            <div style={styles.formGroup}>
                                 <label style={styles.label}>Name</label>
                                 <input
                                     type="text"
@@ -142,48 +244,22 @@ const MyAccount = () => {
                                     required
                                 />
                             </div>
-                            <button type="submit" style={styles.submitButton}>
-                                Update Profile
-                            </button>
-                        </form>
-
-                        <h2 style={styles.title}>Change Password</h2>
-                        <form onSubmit={handlePasswordChange} style={styles.form}>
                             <div style={styles.formGroup}>
-                                <label style={styles.label}>Current Password</label>
+                                <label style={styles.label}>Mobile Number</label>
                                 <input
-                                    type="password"
-                                    name="currentPassword"
-                                    value={formData.currentPassword}
+                                    type="tel"
+                                    name="mobileNumber"
+                                    value={formData.mobileNumber}
                                     onChange={handleInputChange}
                                     style={styles.input}
-                                    required
                                 />
                             </div>
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>New Password</label>
-                                <input
-                                    type="password"
-                                    name="newPassword"
-                                    value={formData.newPassword}
-                                    onChange={handleInputChange}
-                                    style={styles.input}
-                                    required
-                                />
-                            </div>
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Confirm New Password</label>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    onChange={handleInputChange}
-                                    style={styles.input}
-                                    required
-                                />
-                            </div>
-                            <button type="submit" style={styles.submitButton}>
-                                Change Password
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                style={styles.submitButton}
+                            >
+                                {isLoading ? 'Updating...' : 'Update Profile'}
                             </button>
                         </form>
                     </div>
@@ -210,6 +286,18 @@ const styles = {
     sidebarTitle: {
         marginBottom: '20px',
         color: '#333'
+    },
+    profileImageContainer: {
+        display: 'flex',
+        justifyContent: 'center',
+        marginBottom: '20px'
+    },
+    profileImage: {
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        objectFit: 'cover',
+        border: '3px solid #1976d2'
     },
     sidebarButton: {
         display: 'block',
@@ -249,7 +337,10 @@ const styles = {
     },
     form: {
         maxWidth: '500px',
-        marginBottom: '40px'
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
     },
     formGroup: {
         marginBottom: '20px'
@@ -261,33 +352,57 @@ const styles = {
     },
     input: {
         width: '100%',
-        padding: '10px',
+        padding: '8px',
         border: '1px solid #ddd',
         borderRadius: '4px',
         fontSize: '16px'
     },
     submitButton: {
-        padding: '10px 20px',
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#1976d2',
         color: 'white',
+        padding: '10px 20px',
         border: 'none',
         borderRadius: '4px',
         cursor: 'pointer',
         fontSize: '16px'
     },
     successMessage: {
+        backgroundColor: '#4caf50',
+        color: 'white',
         padding: '10px',
-        backgroundColor: '#dff0d8',
-        color: '#3c763d',
-        marginBottom: '20px',
-        borderRadius: '4px'
+        borderRadius: '4px',
+        marginBottom: '20px'
     },
     errorMessage: {
+        backgroundColor: '#f44336',
+        color: 'white',
         padding: '10px',
-        backgroundColor: '#f2dede',
-        color: '#a94442',
-        marginBottom: '20px',
-        borderRadius: '4px'
+        borderRadius: '4px',
+        marginBottom: '20px'
+    },
+    loading: {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 'calc(100vh - 64px)',
+        fontSize: '18px',
+        color: '#666'
+    },
+    imageContainer: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '20px'
+    },
+    fileInput: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0,
+        cursor: 'pointer'
     }
 };
 

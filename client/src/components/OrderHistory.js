@@ -11,16 +11,26 @@ const OrderHistory = () => {
         const fetchOrders = async () => {
             try {
                 const token = localStorage.getItem('token');
+                if (!token) {
+                    setError('Please log in to view your orders');
+                    setLoading(false);
+                    return;
+                }
+
                 const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/orders`, {
                     headers: {
-                        'x-auth-token': token
+                        'Authorization': `Bearer ${token}`
                     }
                 });
                 console.log('Fetched orders:', response.data);
                 setOrders(response.data);
             } catch (err) {
-                setError('Error fetching orders');
                 console.error('Error fetching orders:', err);
+                if (err.response?.status === 401) {
+                    setError('Your session has expired. Please log in again.');
+                } else {
+                    setError('Error fetching orders');
+                }
             } finally {
                 setLoading(false);
             }

@@ -41,6 +41,8 @@ const Checkout = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
+                setError('Please log in to complete your order');
+                setLoading(false);
                 navigate('/login');
                 return;
             }
@@ -75,7 +77,7 @@ const Checkout = () => {
                 orderData,
                 {
                     headers: {
-                        'x-auth-token': token,
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 }
@@ -86,9 +88,16 @@ const Checkout = () => {
             navigate('/my-account?tab=orders');
         } catch (err) {
             console.error('Order error:', err.response?.data);
-            setError(err.response?.data?.message || 'Error placing order');
-            if (err.response?.data?.errors) {
-                setError(err.response.data.errors.map(e => e.msg).join(', '));
+            if (err.response?.status === 401) {
+                setError('Your session has expired. Please log in again.');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            } else {
+                setError(err.response?.data?.message || 'Error placing order');
+                if (err.response?.data?.errors) {
+                    setError(err.response.data.errors.map(e => e.msg).join(', '));
+                }
             }
         } finally {
             setLoading(false);
