@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { FaShoppingCart, FaUser, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const { user, isLoading, logout, fetchUserData } = useAuth();
+  const { cartCount, message } = useCart();
 
   // Fetch user data when component mounts
   useEffect(() => {
@@ -84,6 +86,11 @@ const Navbar = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <Link to="/cart" style={linkStyle}>
             <FaShoppingCart /> Cart
+            {cartCount > 0 && (
+              <span style={{ marginLeft: '8px', backgroundColor: '#e53e3e', color: 'white', borderRadius: '50%', padding: '0.2rem 0.5rem' }}>
+                {cartCount}
+              </span>
+            )}
           </Link>
           <div style={userProfileStyle}>
             {user.profileImage && (
@@ -127,6 +134,11 @@ const Navbar = () => {
         <Link to="/deals" style={linkStyle}>Deals</Link>
         {renderAuthButtons()}
       </div>
+      {message && (
+        <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#4CAF50', color: 'white', padding: '0.5rem 1rem', borderRadius: '4px', marginTop: '0.5rem' }}>
+          {message}
+        </div>
+      )}
     </nav>
   );
 };

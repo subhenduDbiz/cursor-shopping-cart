@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import OrderHistory from '../components/OrderHistory';
@@ -7,6 +7,7 @@ import OrderHistory from '../components/OrderHistory';
 const MyAccount = () => {
     const { user, updateProfile, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [activeTab, setActiveTab] = useState('profile');
     const [formData, setFormData] = useState({
         name: '',
@@ -24,6 +25,15 @@ const MyAccount = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
 
+    // Set active tab based on URL parameter
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab === 'orders') {
+            setActiveTab('orders');
+        }
+    }, [location.search]);
+
     // Update form data when user data changes
     useEffect(() => {
         if (user) {
@@ -36,6 +46,11 @@ const MyAccount = () => {
             setPreviewImage(user.profileImage || null);
         }
     }, [user]);
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        navigate(`/my-account${tab === 'orders' ? '?tab=orders' : ''}`);
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -177,7 +192,7 @@ const MyAccount = () => {
                         ...styles.sidebarButton,
                         ...(activeTab === 'profile' && styles.activeButton)
                     }}
-                    onClick={() => setActiveTab('profile')}
+                    onClick={() => handleTabChange('profile')}
                 >
                     Profile
                 </button>
@@ -186,7 +201,7 @@ const MyAccount = () => {
                         ...styles.sidebarButton,
                         ...(activeTab === 'orders' && styles.activeButton)
                     }}
-                    onClick={() => setActiveTab('orders')}
+                    onClick={() => handleTabChange('orders')}
                 >
                     Order History
                 </button>
@@ -202,8 +217,8 @@ const MyAccount = () => {
                 {message && <div style={styles.successMessage}>{message}</div>}
                 {error && <div style={styles.errorMessage}>{error}</div>}
 
-                {activeTab === 'profile' && (
-                    <div>
+                {activeTab === 'profile' ? (
+                    <>
                         <h2 style={styles.title}>Profile Information</h2>
                         <form onSubmit={handleProfileUpdate} style={styles.form}>
                             <div style={styles.formGroup}>
@@ -262,10 +277,54 @@ const MyAccount = () => {
                                 {isLoading ? 'Updating...' : 'Update Profile'}
                             </button>
                         </form>
-                    </div>
-                )}
 
-                {activeTab === 'orders' && <OrderHistory />}
+                        <h2 style={styles.sectionTitle}>Change Password</h2>
+                        <form onSubmit={handlePasswordChange} style={styles.form}>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Current Password</label>
+                                <input
+                                    type="password"
+                                    name="currentPassword"
+                                    value={passwordData.currentPassword}
+                                    onChange={handleInputChange}
+                                    style={styles.input}
+                                    required
+                                />
+                            </div>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>New Password</label>
+                                <input
+                                    type="password"
+                                    name="newPassword"
+                                    value={passwordData.newPassword}
+                                    onChange={handleInputChange}
+                                    style={styles.input}
+                                    required
+                                />
+                            </div>
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Confirm Password</label>
+                                <input
+                                    type="password"
+                                    name="confirmPassword"
+                                    value={passwordData.confirmPassword}
+                                    onChange={handleInputChange}
+                                    style={styles.input}
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                style={styles.submitButton}
+                            >
+                                {isLoading ? 'Updating...' : 'Change Password'}
+                            </button>
+                        </form>
+                    </>
+                ) : (
+                    <OrderHistory />
+                )}
             </div>
         </div>
     );
@@ -403,6 +462,10 @@ const styles = {
         height: '100%',
         opacity: 0,
         cursor: 'pointer'
+    },
+    sectionTitle: {
+        marginBottom: '20px',
+        color: '#333'
     }
 };
 

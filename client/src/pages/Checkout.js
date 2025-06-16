@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Checkout = () => {
     const navigate = useNavigate();
-    const location = useLocation();
-    const { cartItems, totalAmount } = location.state || { cartItems: [], totalAmount: 0 };
+    const { cartItems, getCartTotal, clearCart } = useCart();
+    const { user } = useAuth();
 
     const [shippingAddress, setShippingAddress] = useState({
         fullName: '',
@@ -18,13 +20,18 @@ const Checkout = () => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
-    // Redirect if no cart items
+    // Redirect if no cart items or not logged in
     React.useEffect(() => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
         if (!cartItems || cartItems.length === 0) {
             navigate('/cart');
         }
-    }, [cartItems, navigate]);
+    }, [cartItems, user, navigate]);
 
     const handleInputChange = (e) => {
         setShippingAddress({
@@ -35,26 +42,17 @@ const Checkout = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError('');
+        setLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setError('Please log in to complete your order');
-                setLoading(false);
-                navigate('/login');
+            if (!user) {
+                navigate('/login', { state: { from: '/checkout' } });
                 return;
             }
 
-            const orderItems = cartItems.map(item => ({
-                product: item._id,
-                quantity: item.quantity,
-                price: item.price
-            }));
-
-            // Format shipping address to match the model
-            const formattedShippingAddress = {
+            // Format shipping address
+            const formattedAddress = {
                 street: shippingAddress.streetAddress,
                 city: shippingAddress.city,
                 state: shippingAddress.state,
@@ -62,49 +60,48 @@ const Checkout = () => {
                 country: shippingAddress.country
             };
 
+            // Format order data
             const orderData = {
-                items: orderItems,
-                totalAmount: Number(totalAmount),
-                shippingAddress: formattedShippingAddress,
-                paymentMethod: 'Cash on Delivery',
-                status: 'Pending'
+                items: cartItems.map(item => ({
+                    product: item.product._id,
+                    quantity: item.quantity,
+                    price: item.product.price
+                })),
+                shippingAddress: formattedAddress,
+                totalAmount: getCartTotal(),
+                paymentMethod: 'Cash on Delivery'
             };
 
-            console.log('Sending order data:', orderData);
-
-            const response = await axios.post(
-                `${process.env.REACT_APP_API_BASE_URL}/api/orders`,
-                orderData,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
+            const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/orders`, orderData, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
-            );
+            });
 
             // Clear cart after successful order
-            localStorage.removeItem('cart');
-            navigate('/my-account?tab=orders');
+            clearCart();
+
+            // Show success message
+            setMessage('Order placed successfully!');
+
+            // Redirect to order history after a short delay
+            setTimeout(() => {
+                navigate('/my-account?tab=orders');
+            }, 1500);
+
         } catch (err) {
-            console.error('Order error:', err.response?.data);
             if (err.response?.status === 401) {
-                setError('Your session has expired. Please log in again.');
-                setTimeout(() => {
-                    navigate('/login');
-                }, 2000);
+                navigate('/login', { state: { from: '/checkout' } });
             } else {
-                setError(err.response?.data?.message || 'Error placing order');
-                if (err.response?.data?.errors) {
-                    setError(err.response.data.errors.map(e => e.msg).join(', '));
-                }
+                setError(err.response?.data?.message || 'Failed to place order. Please try again.');
             }
         } finally {
             setLoading(false);
         }
     };
 
-    if (!cartItems || cartItems.length === 0) {
+    if (!user || !cartItems || cartItems.length === 0) {
         return null;
     }
 
@@ -113,6 +110,7 @@ const Checkout = () => {
             <h1 style={styles.title}>Checkout</h1>
             
             {error && <div style={styles.error}>{error}</div>}
+            {message && <div style={styles.message}>{message}</div>}
 
             <div style={styles.content}>
                 <div style={styles.formSection}>
@@ -218,36 +216,22 @@ const Checkout = () => {
 
                 <div style={styles.orderSummary}>
                     <h2 style={styles.sectionTitle}>Order Summary</h2>
-                    <div style={styles.summaryContent}>
-                        <div style={styles.cartItems}>
-                            {cartItems.map(item => (
-                                <div key={item._id} style={styles.cartItem}>
-                                    <img 
-                                        src={item.images[0]} 
-                                        alt={item.name} 
-                                        style={styles.itemImage}
-                                    />
-                                    <div style={styles.itemDetails}>
-                                        <h3 style={styles.itemName}>{item.name}</h3>
-                                        <p style={styles.itemPrice}>
-                                            ${item.price.toFixed(2)} x {item.quantity}
-                                        </p>
-                                    </div>
+                    <div style={styles.itemsList}>
+                        {cartItems.map(item => (
+                            <div key={item.product._id} style={styles.orderItem}>
+                                <div style={styles.itemInfo}>
+                                    <span style={styles.itemName}>{item.product.name}</span>
+                                    <span style={styles.itemQuantity}>x{item.quantity}</span>
                                 </div>
-                            ))}
-                        </div>
-                        <div style={styles.summaryRow}>
-                            <span>Total Items:</span>
-                            <span>{cartItems.reduce((total, item) => total + item.quantity, 0)}</span>
-                        </div>
-                        <div style={styles.summaryRow}>
-                            <span>Total Amount:</span>
-                            <span>${totalAmount.toFixed(2)}</span>
-                        </div>
-                        <div style={styles.summaryRow}>
-                            <span>Payment Method:</span>
-                            <span>Cash on Delivery</span>
-                        </div>
+                                <span style={styles.itemPrice}>
+                                    ${(item.product.price * item.quantity).toFixed(2)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div style={styles.total}>
+                        <span>Total:</span>
+                        <span style={styles.totalAmount}>${getCartTotal().toFixed(2)}</span>
                     </div>
                 </div>
             </div>
@@ -266,19 +250,30 @@ const styles = {
         marginBottom: '20px',
         color: '#333'
     },
+    error: {
+        backgroundColor: '#ffebee',
+        color: '#c62828',
+        padding: '10px',
+        borderRadius: '4px',
+        marginBottom: '20px'
+    },
+    message: {
+        backgroundColor: '#e8f5e9',
+        color: '#43a047',
+        padding: '10px',
+        borderRadius: '4px',
+        marginBottom: '20px'
+    },
     content: {
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
         gap: '40px'
     },
     formSection: {
-        flex: 2
-    },
-    orderSummary: {
-        flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: 'white',
         padding: '20px',
         borderRadius: '8px',
-        height: 'fit-content'
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
     },
     sectionTitle: {
         fontSize: '20px',
@@ -296,7 +291,8 @@ const styles = {
         gap: '8px'
     },
     formRow: {
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
         gap: '20px'
     },
     label: {
@@ -310,7 +306,7 @@ const styles = {
         fontSize: '16px'
     },
     submitButton: {
-        padding: '12px 24px',
+        padding: '12px',
         backgroundColor: '#4CAF50',
         color: 'white',
         border: 'none',
@@ -319,60 +315,56 @@ const styles = {
         fontSize: '16px',
         marginTop: '20px',
         ':disabled': {
-            backgroundColor: '#cccccc',
+            backgroundColor: '#ccc',
             cursor: 'not-allowed'
         }
     },
-    error: {
-        padding: '10px',
-        backgroundColor: '#f8d7da',
-        color: '#721c24',
-        borderRadius: '4px',
-        marginBottom: '20px'
-    },
-    summaryContent: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px'
-    },
-    cartItems: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        marginBottom: '20px'
-    },
-    cartItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px',
+    orderSummary: {
         backgroundColor: 'white',
-        borderRadius: '4px'
+        padding: '20px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
     },
-    itemImage: {
-        width: '50px',
-        height: '50px',
-        objectFit: 'cover',
-        borderRadius: '4px'
+    itemsList: {
+        marginBottom: '20px'
     },
-    itemDetails: {
-        flex: 1
-    },
-    itemName: {
-        fontSize: '14px',
-        margin: 0,
-        color: '#333'
-    },
-    itemPrice: {
-        fontSize: '14px',
-        margin: '4px 0 0',
-        color: '#666'
-    },
-    summaryRow: {
+    orderItem: {
         display: 'flex',
         justifyContent: 'space-between',
+        alignItems: 'center',
         padding: '10px 0',
-        borderBottom: '1px solid #ddd'
+        borderBottom: '1px solid #eee'
+    },
+    itemInfo: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px'
+    },
+    itemName: {
+        fontSize: '16px',
+        color: '#333'
+    },
+    itemQuantity: {
+        fontSize: '14px',
+        color: '#666'
+    },
+    itemPrice: {
+        fontSize: '16px',
+        color: '#333',
+        fontWeight: '500'
+    },
+    total: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '20px 0',
+        borderTop: '2px solid #eee',
+        fontSize: '18px',
+        fontWeight: '500'
+    },
+    totalAmount: {
+        fontSize: '24px',
+        color: '#333'
     }
 };
 
