@@ -6,6 +6,9 @@ const fs = require('fs');
 const errorHandler = require('./middleware/errorHandler');
 const config = require('./config/config');
 const multer = require('multer');
+const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./config/swagger');
 
 // Initialize express app
 const app = express();
@@ -25,7 +28,13 @@ const productUploadsDir = path.join(__dirname, 'uploads/products');
 
 // Initialize middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: config.clientUrl,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(morgan('dev'));
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -35,6 +44,9 @@ app.use((req, res, next) => {
     console.log(`${req.method} ${req.url}`);
     next();
 });
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // Mount all API routes
 app.use('/api/v1', require('./routes/api/v1'));
@@ -71,4 +83,7 @@ app.use(errorHandler);
 
 // Start server
 const PORT = config.port || 5000;
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`)); 
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`API Documentation available at http://localhost:${PORT}/api-docs`);
+}); 

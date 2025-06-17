@@ -1,121 +1,148 @@
-# Dress Shop E-commerce Application
+# Shopping Cart Application
 
-A full-stack e-commerce application for selling men's and women's dresses, built with Node.js, Express, MongoDB, and React.
+A full-stack e-commerce application with user authentication, product management, shopping cart, and order processing.
 
 ## Features
 
-- User authentication and authorization
-- Product management (CRUD operations)
-- Shopping cart functionality
-- Order management
-- Payment integration (PayPal and Stripe)
-- Responsive design
-- Admin dashboard
+- User Authentication (Register, Login, Profile Management)
+- Product Management (CRUD operations)
+- Shopping Cart Functionality
+- Order Processing
+- Admin Dashboard
+- Image Upload for Products and User Profiles
+- API Documentation with Swagger
 
-## Prerequisites
-
-- Node.js (v14 or higher)
-- MongoDB
-- PayPal Developer Account
-- Stripe Account
-
-## Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
-
-```
-NODE_ENV=development
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/dress-shop
-JWT_SECRET=your_jwt_secret_key_here
-STRIPE_SECRET_KEY=your_stripe_secret_key_here
-PAYPAL_CLIENT_ID=your_paypal_client_id_here
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret_here
-```
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd dress-shop
-```
-
-2. Install server dependencies:
-```bash
-npm install
-```
-
-3. Install client dependencies:
-```bash
-cd client
-npm install
-```
-
-4. Start the development server:
-```bash
-# Run backend only
-npm run dev
-
-# Run frontend only
-npm run client
-
-# Run both frontend and backend
-npm run dev:full
-```
-
-## API Endpoints
-
-### Authentication
-- POST /api/auth/register - Register a new user
-- POST /api/auth/login - Login user
-
-### Products
-- GET /api/products - Get all products
-- GET /api/products/:id - Get product by ID
-- POST /api/products - Create a product (Admin only)
-- PUT /api/products/:id - Update a product (Admin only)
-- DELETE /api/products/:id - Delete a product (Admin only)
-
-### Orders
-- POST /api/orders - Create a new order
-- GET /api/orders/:id - Get order by ID
-- GET /api/orders/myorders - Get logged in user orders
-- PUT /api/orders/:id/pay - Update order to paid
-- PUT /api/orders/:id/deliver - Update order to delivered (Admin only)
-
-### Payment
-- POST /api/payment/stripe/create-payment-intent - Create Stripe payment intent
-- POST /api/payment/paypal/create-order - Create PayPal order
-- POST /api/payment/paypal/capture-order - Capture PayPal order
-
-## Technologies Used
+## Tech Stack
 
 ### Backend
 - Node.js
 - Express.js
 - MongoDB
-- Mongoose
 - JWT Authentication
-- PayPal SDK
-- Stripe API
+- Multer for File Uploads
+- Swagger for API Documentation
 
 ### Frontend
-- React
-- Redux
-- React Router
-- Axios
-- Material-UI
-- Styled Components
+- React.js
+- Redux for State Management
+- Axios for API Calls
+- Material-UI for Styling
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v14 or higher)
+- MongoDB
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd shopping-cart
+```
+
+2. Install backend dependencies:
+```bash
+cd server
+npm install
+```
+
+3. Install frontend dependencies:
+```bash
+cd ../client
+npm install
+```
+
+4. Create a `.env` file in the server directory with the following variables:
+```
+NODE_ENV=development
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/shopping-cart
+JWT_SECRET=your-secret-key
+CLIENT_URL=http://localhost:3000
+```
+
+### Running the Application
+
+1. Start the backend server:
+```bash
+cd server
+npm start
+```
+
+2. Start the frontend development server:
+```bash
+cd client
+npm start
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+- API Documentation: http://localhost:5000/api-docs
+
+## API Documentation
+
+The API documentation is available at http://localhost:5000/api-docs. It provides detailed information about:
+
+- Available endpoints
+- Request/response schemas
+- Authentication requirements
+- Example requests and responses
+
+### API Endpoints
+
+#### Authentication
+- POST /api/v1/auth/register - Register a new user
+- POST /api/v1/auth/login - Login user
+- GET /api/v1/auth/me - Get current user profile
+- PUT /api/v1/auth/update-profile - Update user profile
+- PUT /api/v1/auth/change-password - Change user password
+
+#### Products
+- GET /api/v1/products - Get all products
+- GET /api/v1/products/:id - Get product by ID
+- POST /api/v1/products - Create new product (Admin only)
+- PUT /api/v1/products/:id - Update product (Admin only)
+- DELETE /api/v1/products/:id - Delete product (Admin only)
+
+#### Cart
+- GET /api/v1/cart - Get user's cart
+- POST /api/v1/cart - Add item to cart
+- PUT /api/v1/cart/:productId - Update cart item quantity
+- DELETE /api/v1/cart/:productId - Remove item from cart
+- DELETE /api/v1/cart - Clear cart
+
+#### Orders
+- GET /api/v1/orders - Get user's orders
+- GET /api/v1/orders/:id - Get order by ID
+- POST /api/v1/orders - Create new order
+- PUT /api/v1/orders/:id/status - Update order status (Admin only)
+
+## Database Seeding
+
+To seed the database with initial data:
+
+```bash
+cd server
+node seed/index.js
+```
+
+This will create:
+- Admin user (email: admin@example.com, password: admin123)
+- Sample products
+- Sample deals
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License - see the LICENSE file for details. 
