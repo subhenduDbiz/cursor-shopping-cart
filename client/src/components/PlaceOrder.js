@@ -28,6 +28,13 @@ const PlaceOrder = ({ cartItems, totalAmount, onOrderPlaced }) => {
 
         try {
             const token = localStorage.getItem('token');
+            if (!token) {
+                setError('Please log in to place an order');
+                setLoading(false);
+                navigate('/login');
+                return;
+            }
+
             const orderItems = cartItems.map(item => ({
                 product: item._id,
                 quantity: item.quantity,
@@ -43,13 +50,22 @@ const PlaceOrder = ({ cartItems, totalAmount, onOrderPlaced }) => {
 
             await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/orders`, orderData, {
                 headers: {
-                    'x-auth-token': token
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
             });
             onOrderPlaced();
             navigate('/my-account');
         } catch (err) {
-            setError(err.response?.data?.message || 'Error placing order');
+            console.error('Order placement error:', err);
+            if (err.response?.status === 401) {
+                setError('Your session has expired. Please log in again.');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            } else {
+                setError(err.response?.data?.message || 'Error placing order');
+            }
         } finally {
             setLoading(false);
         }

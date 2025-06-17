@@ -1,45 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Cart = () => {
-  const [cart, setCart] = useState([]);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    setCart(JSON.parse(localStorage.getItem('cart') || '[]'));
-  }, []);
-
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  const handleUpdateQuantity = (itemId, newQuantity) => {
-    if (newQuantity < 1) return;
-    const updatedCart = cart.map(item =>
-      item._id === itemId ? { ...item, quantity: newQuantity } : item
-    );
-    setCart(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-  };
-
-  const handleRemoveItem = (itemId) => {
-    const updatedCart = cart.filter(item => item._id !== itemId);
-    setCart(updatedCart);
-    localStorage.setItem('cart', JSON.stringify(updatedCart));
-  };
+  const { cartItems, updateQuantity, removeFromCart, getCartTotal, loading } = useCart();
+  const { user } = useAuth();
 
   const handleCheckout = () => {
-    if (cart.length === 0) return;
+    if (cartItems.length === 0) return;
     navigate('/checkout', {
       state: {
-        cartItems: cart,
-        totalAmount: total
+        cartItems,
+        totalAmount: getCartTotal()
       }
     });
   };
 
+  if (!user) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.emptyCart}>
+          <p>Please login to view your cart</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.emptyCart}>
+          <p>Loading cart...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Your Cart</h2>
-      {cart.length === 0 ? (
+      {!cartItems || cartItems.length === 0 ? (
         <div style={styles.emptyCart}>
           <p>Your cart is empty</p>
           <p>Add some items to your cart to continue shopping</p>
@@ -47,19 +49,23 @@ const Cart = () => {
       ) : (
         <>
           <div style={styles.cartItems}>
-            {cart.map(item => (
-              <div key={item._id} style={styles.cartItem}>
+            {cartItems.map(item => (
+              <div key={item.product._id} style={styles.cartItem}>
                 <img 
-                  src={item.images[0]} 
-                  alt={item.name} 
+                  src={item.product.image} 
+                  alt={item.product.name} 
                   style={styles.itemImage}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/images/placeholder.jpg';
+                  }}
                 />
                 <div style={styles.itemDetails}>
-                  <h3 style={styles.itemName}>{item.name}</h3>
-                  <p style={styles.itemPrice}>${item.price.toFixed(2)}</p>
+                  <h3 style={styles.itemName}>{item.product.name}</h3>
+                  <p style={styles.itemPrice}>${item.product.price.toFixed(2)}</p>
                   <div style={styles.quantityControls}>
                     <button 
-                      onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.product._id, item.quantity - 1)}
                       disabled={item.quantity <= 1}
                       style={styles.quantityButton}
                     >
@@ -67,7 +73,7 @@ const Cart = () => {
                     </button>
                     <span style={styles.quantity}>{item.quantity}</span>
                     <button 
-                      onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.product._id, item.quantity + 1)}
                       style={styles.quantityButton}
                     >
                       +
@@ -75,7 +81,7 @@ const Cart = () => {
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleRemoveItem(item._id)}
+                  onClick={() => removeFromCart(item.product._id)}
                   style={styles.removeButton}
                 >
                   Remove
@@ -86,7 +92,7 @@ const Cart = () => {
           <div style={styles.summary}>
             <div style={styles.totalRow}>
               <span>Total:</span>
-              <span style={styles.totalAmount}>${total.toFixed(2)}</span>
+              <span style={styles.totalAmount}>${getCartTotal().toFixed(2)}</span>
             </div>
             <button 
               onClick={handleCheckout}

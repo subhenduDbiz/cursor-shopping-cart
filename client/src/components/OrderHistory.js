@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { orderAPI } from '../services/api';
 
 const OrderHistory = () => {
     const [orders, setOrders] = useState([]);
@@ -10,17 +10,22 @@ const OrderHistory = () => {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/orders`, {
-                    headers: {
-                        'x-auth-token': token
-                    }
-                });
-                console.log('Fetched orders:', response.data);
-                setOrders(response.data);
+                const response = await orderAPI.getAll();
+                console.log('Fetched orders response:', response);
+                console.log('Orders data:', response.data);
+                if (response.data.success) {
+                    console.log('Setting orders:', response.data.data);
+                    setOrders(response.data.data);
+                } else {
+                    setError('Failed to fetch orders');
+                }
             } catch (err) {
-                setError('Error fetching orders');
                 console.error('Error fetching orders:', err);
+                if (err.response?.status === 401) {
+                    setError('Your session has expired. Please log in again.');
+                } else {
+                    setError(err.response?.data?.msg || 'Error fetching orders');
+                }
             } finally {
                 setLoading(false);
             }
@@ -34,27 +39,36 @@ const OrderHistory = () => {
     };
 
     const renderProductImage = (item) => {
-        console.log('Rendering product:', item);
+        console.log('Rendering product item:', item);
+        console.log('Product data:', item.product);
         
         if (!item.product) {
             console.log('No product data available');
             return <div style={styles.placeholderImage}>No Image</div>;
         }
         
-        const imageUrl = item.product.images && item.product.images[0];
+        // Get the image URL from the product
+        const imageUrl = item.product.image;
+        console.log('Image URL from product:', imageUrl);
+        
         if (!imageUrl) {
             console.log('No image URL available');
             return <div style={styles.placeholderImage}>No Image</div>;
         }
 
-        console.log('Using image URL:', imageUrl);
+        // Format the image URL with the base URL if it's a relative path
+        const formattedImageUrl = imageUrl.startsWith('http') 
+            ? imageUrl 
+            : `${process.env.REACT_APP_API_BASE_URL}${imageUrl}`;
+
+        console.log('Formatted image URL:', formattedImageUrl);
         return (
             <img
-                src={imageUrl}
+                src={formattedImageUrl}
                 alt={item.product.name || 'Product image'}
                 style={styles.itemImage}
                 onError={(e) => {
-                    console.log('Image failed to load:', imageUrl);
+                    console.log('Image failed to load:', formattedImageUrl);
                     e.target.onerror = null;
                     e.target.style.display = 'none';
                     e.target.parentNode.innerHTML = '<div style="' + 
