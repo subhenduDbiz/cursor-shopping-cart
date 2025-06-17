@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { dealAPI } from '../services/api';
+import { FILE_BASE_URL } from '../config/api';
 
 const Deals = () => {
     const [deals, setDeals] = useState([]);
@@ -9,24 +10,38 @@ const Deals = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        fetchDeals();
-    }, [currentPage]);
-
-    const fetchDeals = async () => {
+    const fetchDeals = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/deals?page=${currentPage}&limit=10`);
-            setDeals(res.data.deals);
-            setTotalPages(res.data.totalPages);
+            const response = await dealAPI.getAll({ page: currentPage, limit: 10 });
+            if (response.data && response.data.data) {
+                // Format image URLs for deals
+                const formattedDeals = (response.data.data.deals || []).map(deal => ({
+                    ...deal,
+                    image: deal.image.startsWith('http') 
+                        ? deal.image 
+                        : `${FILE_BASE_URL}${deal.image.startsWith('/') ? '' : '/'}${deal.image}`
+                }));
+                setDeals(formattedDeals);
+                setTotalPages(response.data.data.totalPages || 1);
+            } else {
+                setDeals([]);
+                setTotalPages(1);
+            }
             setError('');
         } catch (err) {
             setError('Failed to fetch deals');
             console.error('Error fetching deals:', err);
+            setDeals([]);
+            setTotalPages(1);
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage]);
+
+    useEffect(() => {
+        fetchDeals();
+    }, [fetchDeals]);
 
     const pageStyle = {
         padding: '20px',
@@ -110,8 +125,14 @@ const Deals = () => {
         border: 'none'
     };
 
+    const handleImageError = (e) => {
+        e.target.onerror = null;
+        e.target.src = `${FILE_BASE_URL}/uploads/products/placeholder.jpg`;
+    };
+
     if (loading) return <div style={pageStyle}>Loading...</div>;
     if (error) return <div style={pageStyle}>{error}</div>;
+    if (!deals || deals.length === 0) return <div style={pageStyle}>No deals available at the moment.</div>;
 
     return (
         <div style={pageStyle}>
@@ -119,29 +140,37 @@ const Deals = () => {
             <div style={dealsGridStyle}>
                 {deals.map(deal => (
                     <div key={deal._id} style={dealCardStyle}>
-                        <img src={deal.image} alt={deal.title} style={imageStyle} />
+                        <img 
+                            src={deal.image} 
+                            alt={deal.title} 
+                            style={imageStyle}
+                            onError={handleImageError}
+                            loading="lazy"
+                        />
                         <h2 style={titleStyle}>{deal.title}</h2>
                         <p>{deal.description}</p>
                         <div style={priceStyle}>
-                            <span style={originalPriceStyle}>${deal.originalPrice}</span>
-                            <span style={discountedPriceStyle}>${deal.discountedPrice}</span>
+                            <span style={originalPriceStyle}>${deal.originalPrice.toFixed(2)}</span>
+                            <span style={discountedPriceStyle}>${deal.discountedPrice.toFixed(2)}</span>
                             <span style={discountBadgeStyle}>{deal.discountPercentage}% OFF</span>
                         </div>
                         <p>Valid until: {new Date(deal.endDate).toLocaleDateString()}</p>
                     </div>
                 ))}
             </div>
-            <div style={paginationStyle}>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-                    <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        style={currentPage === pageNum ? activePageButtonStyle : pageButtonStyle}
-                    >
-                        {pageNum}
-                    </button>
-                ))}
-            </div>
+            {totalPages > 1 && (
+                <div style={paginationStyle}>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            style={currentPage === pageNum ? activePageButtonStyle : pageButtonStyle}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

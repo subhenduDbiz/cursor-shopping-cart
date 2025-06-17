@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { cartAPI } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
@@ -22,14 +22,27 @@ export const CartProvider = ({ children }) => {
 
     // Fetch cart items when user changes
     useEffect(() => {
-        if (user) {
-            fetchCartItems();
-        } else {
-            // Clear cart when user logs out
-            setCartItems([]);
-            setCartCount(0);
-        }
-    }, [user]);
+        const fetchCartItems = async () => {
+            if (user) {
+                try {
+                    setLoading(true);
+                    const response = await cartAPI.get();
+                    if (response.data) {
+                        setCartItems(response.data.items || []);
+                    }
+                } catch (error) {
+                    console.error('Error fetching cart:', error);
+                    setCartItems([]);
+                } finally {
+                    setLoading(false);
+                }
+            } else {
+                setCartItems([]);
+            }
+        };
+
+        fetchCartItems();
+    }, [user]); // Only depend on user changes
 
     // Update cartCount whenever cartItems change
     useEffect(() => {
@@ -46,30 +59,7 @@ export const CartProvider = ({ children }) => {
         setMessage('');
     };
 
-    const fetchCartItems = async () => {
-        if (!user) return;
-
-        try {
-            setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.get(
-                `${process.env.REACT_APP_API_BASE_URL}/api/cart`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
-            setCartItems(response.data.items);
-        } catch (err) {
-            console.error('Error fetching cart items:', err);
-            showMessage('Error loading cart items', 'error');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const addToCart = async (product) => {
+    const addToCart = async (product, quantity = 1) => {
         if (!user) {
             showMessage('Please login to add items to cart', 'warning');
             return;
@@ -77,21 +67,16 @@ export const CartProvider = ({ children }) => {
 
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.post(
-                `${process.env.REACT_APP_API_BASE_URL}/api/cart/add`,
-                { productId: product._id },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            const response = await cartAPI.addItem({ 
+                productId: product._id,
+                quantity: quantity
+            });
             setCartItems(response.data.items);
             showMessage('Item added to cart', 'success');
         } catch (err) {
             console.error('Error adding to cart:', err);
-            setMessage(err.response?.data?.message || 'Error adding item to cart');
+            const errorMessage = err.response?.data?.msg || err.response?.data?.message || 'Error adding item to cart';
+            showMessage(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -107,15 +92,7 @@ export const CartProvider = ({ children }) => {
 
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.delete(
-                `${process.env.REACT_APP_API_BASE_URL}/api/cart/remove/${productId}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            const response = await cartAPI.removeItem(productId);
             setCartItems(response.data.items);
             setMessage('Item removed from cart');
         } catch (err) {
@@ -132,27 +109,25 @@ export const CartProvider = ({ children }) => {
     };
 
     const updateQuantity = async (productId, quantity) => {
-        if (!user || quantity < 1) return;
+        if (!user || quantity < 0) return;
 
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.put(
-                `${process.env.REACT_APP_API_BASE_URL}/api/cart/update`,
-                { productId, quantity },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            const response = await cartAPI.updateItem(productId, { quantity });
             setCartItems(response.data.items);
+            showMessage('Cart updated', 'success');
         } catch (err) {
             console.error('Error updating cart:', err);
-            setMessage(err.response?.data?.message || 'Error updating cart');
+            const errorMessage = err.response?.data?.msg || err.response?.data?.message || 'Error updating cart';
+            showMessage(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
+
+        // Clear message after 3 seconds
+        setTimeout(() => {
+            setMessage('');
+        }, 3000);
     };
 
     const clearCart = async () => {
@@ -160,15 +135,7 @@ export const CartProvider = ({ children }) => {
 
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            await axios.delete(
-                `${process.env.REACT_APP_API_BASE_URL}/api/cart/clear`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            await cartAPI.clear();
             setCartItems([]);
             setMessage('Cart cleared');
         } catch (err) {

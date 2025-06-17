@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { orderAPI } from '../services/api';
 
 const Checkout = () => {
     const navigate = useNavigate();
@@ -72,12 +72,7 @@ const Checkout = () => {
                 paymentMethod: 'Cash on Delivery'
             };
 
-            const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/orders`, orderData, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const response = await orderAPI.create(orderData);
 
             // Clear cart after successful order
             clearCart();

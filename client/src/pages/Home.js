@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { productAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 
 const Home = () => {
@@ -8,54 +8,72 @@ const Home = () => {
   const [womenProducts, setWomenProducts] = useState([]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const selectedCategory = searchParams.get('category');
+  const selectedCategory = searchParams.get('category') || 'men'; // Default to men's category
   
   // Pagination states
   const [menPage, setMenPage] = useState(1);
   const [hasMoreMen, setHasMoreMen] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const fetchMenProducts = useCallback(async (page) => {
     try {
       setLoading(true);
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_BASE_URL}/api/products?category=men&page=${page}&limit=10`
-      );
+      const response = await productAPI.getAll({ category: 'men', page, limit: 10 });
+      console.log('Men products response:', response.data);
       
-      if (page === 1) {
-        setMenProducts(res.data.products);
+      if (response.data && response.data.data) {
+        const products = response.data.data.products || [];
+        if (page === 1) {
+          setMenProducts(products);
+        } else {
+          setMenProducts(prev => [...prev, ...products]);
+        }
+        setHasMoreMen(page < response.data.data.totalPages);
       } else {
-        setMenProducts(prev => [...prev, ...res.data.products]);
+        setMenProducts([]);
+        setHasMoreMen(false);
       }
-      
-      setHasMoreMen(page < res.data.totalPages);
-      setLoading(false);
     } catch (err) {
       console.error('Error fetching men\'s products:', err);
+      setMenProducts([]);
+      setHasMoreMen(false);
+    } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }, []);
 
   const fetchWomenProducts = async () => {
     try {
-      const res = await axios.get(
-        `${process.env.REACT_APP_API_BASE_URL}/api/products?category=women`
-      );
-      setWomenProducts(res.data.products);
+      setInitialLoading(true);
+      const response = await productAPI.getAll({ category: 'women' });
+      console.log('Women products response:', response.data);
+      
+      if (response.data && response.data.data) {
+        setWomenProducts(response.data.data.products || []);
+      } else {
+        setWomenProducts([]);
+      }
     } catch (err) {
       console.error('Error fetching women\'s products:', err);
+      setWomenProducts([]);
+    } finally {
+      setInitialLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log('Selected category:', selectedCategory);
     fetchMenProducts(1);
     fetchWomenProducts();
-  }, [fetchMenProducts]);
+  }, [fetchMenProducts, selectedCategory]);
 
   const loadMoreMen = () => {
     if (!loading && hasMoreMen) {
-      setMenPage(prev => prev + 1);
-      fetchMenProducts(menPage + 1);
+      const nextPage = menPage + 1;
+      setMenPage(nextPage);
+      fetchMenProducts(nextPage);
     }
   };
 
@@ -70,6 +88,16 @@ const Home = () => {
     localStorage.setItem('cart', JSON.stringify(cart));
     navigate('/cart');
   };
+
+  if (initialLoading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingText}>Loading products...</div>
+      </div>
+    );
+  }
+
+  const currentProducts = selectedCategory === 'women' ? womenProducts : menProducts;
 
   return (
     <div style={styles.container}>
@@ -95,14 +123,12 @@ const Home = () => {
       </div>
 
       <div style={styles.productsGrid}>
-        {selectedCategory === 'women' ? (
-          womenProducts.map(product => (
+        {currentProducts && currentProducts.length > 0 ? (
+          currentProducts.map(product => (
             <ProductCard key={product._id} product={product} />
           ))
         ) : (
-          menProducts.map(product => (
-            <ProductCard key={product._id} product={product} />
-          ))
+          <div style={styles.noProducts}>No products found</div>
         )}
       </div>
 
@@ -140,10 +166,7 @@ const styles = {
     fontSize: '1.1rem',
     fontWeight: '500',
     borderRadius: '4px',
-    transition: 'all 0.2s',
-    ':hover': {
-      backgroundColor: '#f7fafc'
-    }
+    transition: 'all 0.2s'
   },
   activeCategory: {
     color: '#4CAF50',
@@ -169,14 +192,24 @@ const styles = {
     cursor: 'pointer',
     fontSize: '1rem',
     fontWeight: '500',
-    transition: 'background-color 0.2s',
-    ':hover': {
-      backgroundColor: '#45a049'
-    },
-    ':disabled': {
-      backgroundColor: '#a0aec0',
-      cursor: 'not-allowed'
-    }
+    transition: 'background-color 0.2s'
+  },
+  loadingContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '200px'
+  },
+  loadingText: {
+    fontSize: '1.2rem',
+    color: '#4a5568'
+  },
+  noProducts: {
+    gridColumn: '1 / -1',
+    textAlign: 'center',
+    padding: '40px',
+    fontSize: '1.2rem',
+    color: '#4a5568'
   }
 };
 

@@ -1,29 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { productAPI } from '../services/api';
+import { useCart } from '../context/CartContext';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   useEffect(() => {
-    axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/products/${id}`)
-      .then(res => setProduct(res.data))
-      .catch(err => console.error('Error fetching product details:', err));
+    const fetchProduct = async () => {
+      try {
+        const response = await productAPI.getById(id);
+        setProduct(response.data);
+      } catch (err) {
+        console.error('Error fetching product details:', err);
+      }
+    };
+    fetchProduct();
   }, [id]);
 
-  const addToCart = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const existing = cart.find(item => item._id === product._id);
-    if (existing) {
-      existing.quantity += quantity;
-    } else {
-      cart.push({ ...product, quantity });
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart(product);
+      navigate('/cart');
     }
-    localStorage.setItem('cart', JSON.stringify(cart));
-    navigate('/cart');
   };
 
   if (!product) return <div>Loading...</div>;
@@ -35,7 +38,7 @@ const ProductDetails = () => {
       <p>{product.description}</p>
       <p>Price: ${product.price}</p>
       <label>Quantity: <input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></label>
-      <button onClick={addToCart} style={{ marginLeft: 10 }}>Add to Cart</button>
+      <button onClick={handleAddToCart} style={{ marginLeft: 10 }}>Add to Cart</button>
     </div>
   );
 };

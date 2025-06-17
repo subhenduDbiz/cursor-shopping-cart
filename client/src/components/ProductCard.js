@@ -10,7 +10,7 @@ const ProductCard = ({ product }) => {
         <div style={styles.card}>
             <Link to={`/product/${product._id}`} style={styles.imageLink}>
                 <img
-                    src={product.images[0]}
+                    src={product.image}
                     alt={product.name}
                     style={styles.image}
                     onError={(e) => {
@@ -23,7 +23,8 @@ const ProductCard = ({ product }) => {
                 <Link to={`/product/${product._id}`} style={styles.title}>
                     {product.name}
                 </Link>
-                <p style={styles.price}>${product.price}</p>
+                <p style={styles.description}>{product.description}</p>
+                <p style={styles.price}>${product.price.toFixed(2)}</p>
                 <button
                     onClick={() => addToCart(product)}
                     disabled={isProductInCart}
@@ -69,8 +70,8 @@ const styles = {
         padding: '1rem'
     },
     title: {
-        fontSize: '1rem',
-        fontWeight: '500',
+        fontSize: '1.1rem',
+        fontWeight: '600',
         color: '#2d3748',
         textDecoration: 'none',
         display: 'block',
@@ -78,6 +79,16 @@ const styles = {
         ':hover': {
             color: '#4a5568'
         }
+    },
+    description: {
+        fontSize: '0.9rem',
+        color: '#718096',
+        marginBottom: '0.5rem',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
     },
     price: {
         fontSize: '1.25rem',

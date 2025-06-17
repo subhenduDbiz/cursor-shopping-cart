@@ -41,7 +41,7 @@ const Cart = () => {
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>Your Cart</h2>
-      {cartItems.length === 0 ? (
+      {!cartItems || cartItems.length === 0 ? (
         <div style={styles.emptyCart}>
           <p>Your cart is empty</p>
           <p>Add some items to your cart to continue shopping</p>
@@ -52,9 +52,13 @@ const Cart = () => {
             {cartItems.map(item => (
               <div key={item.product._id} style={styles.cartItem}>
                 <img 
-                  src={item.product.images[0]} 
+                  src={item.product.image} 
                   alt={item.product.name} 
                   style={styles.itemImage}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/images/placeholder.jpg';
+                  }}
                 />
                 <div style={styles.itemDetails}>
                   <h3 style={styles.itemName}>{item.product.name}</h3>

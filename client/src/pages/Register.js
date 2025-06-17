@@ -27,10 +27,24 @@ const Register = () => {
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                setError('Please select a valid image file (JPEG, JPG, or PNG)');
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('Image size should be less than 5MB');
+                return;
+            }
+
             setFormData(prev => ({
                 ...prev,
                 profileImage: file
             }));
+
             // Create preview URL
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -58,7 +72,9 @@ const Register = () => {
             formDataToSend.append('email', formData.email);
             formDataToSend.append('password', formData.password);
             formDataToSend.append('mobileNumber', formData.mobileNumber);
-            if (formData.profileImage) {
+            
+            // Only append profileImage if it's a File object
+            if (formData.profileImage instanceof File) {
                 formDataToSend.append('profileImage', formData.profileImage);
             }
 

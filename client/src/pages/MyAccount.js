@@ -167,7 +167,7 @@ const MyAccount = () => {
     };
 
     const getProfileImageUrl = (imagePath) => {
-        if (!imagePath) return `${process.env.REACT_APP_API_BASE_URL}/uploads/profile-images/default-avatar.png`;
+        if (!imagePath) return '/images/default-avatar.png';
         if (imagePath.startsWith('http')) return imagePath;
         return `${process.env.REACT_APP_API_BASE_URL}${imagePath}`;
     };
@@ -185,6 +185,10 @@ const MyAccount = () => {
                         src={getProfileImageUrl(user.profileImage)} 
                         alt="Profile" 
                         style={styles.profileImage}
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/images/default-avatar.png';
+                        }}
                     />
                 </div>
                 <button
