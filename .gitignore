@@ -1,6 +1,8 @@
 # Dependencies
 /node_modules
 /client/node_modules
+/crm-api/node_modules
+/admin-panel/node_modules
 /.pnp
 .pnp.js
 
@@ -10,6 +12,7 @@
 # Production
 /build
 /client/build
+/admin-panel/build
 
 # Environment variables
 .env
@@ -23,6 +26,18 @@
 /client/.env.development.local
 /client/.env.test.local
 /client/.env.production.local
+/crm-api/.env
+/crm-api/.env.local
+/crm-api/.env.development
+/crm-api/.env.development.local
+/crm-api/.env.test.local
+/crm-api/.env.production.local
+/admin-panel/.env
+/admin-panel/.env.local
+/admin-panel/.env.development
+/admin-panel/.env.development.local
+/admin-panel/.env.test.local
+/admin-panel/.env.production.local
 # Don't ignore env.development as it's a template
 !env.development
 
@@ -49,6 +64,12 @@ Thumbs.db
 # Uploaded files
 /uploads
 /uploads/*
+/server/uploads
+/server/uploads/*
+/server/uploads/profile-images
+/server/uploads/profile-images/*
+/server/uploads/products
+/server/uploads/products/*
 
 # Optional npm cache directory
 .npm
