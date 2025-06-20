@@ -3,6 +3,7 @@
 /client/node_modules
 /crm-api/node_modules
 /admin-panel/node_modules
+/crm-api-nestjs/node_modules
 /.pnp
 .pnp.js
 
@@ -13,6 +14,7 @@
 /build
 /client/build
 /admin-panel/build
+/crm-api-nestjs/dist
 
 # Environment variables
 .env
@@ -38,6 +40,12 @@
 /admin-panel/.env.development.local
 /admin-panel/.env.test.local
 /admin-panel/.env.production.local
+/crm-api-nestjs/.env
+/crm-api-nestjs/.env.local
+/crm-api-nestjs/.env.development
+/crm-api-nestjs/.env.development.local
+/crm-api-nestjs/.env.test.local
+/crm-api-nestjs/.env.production.local
 # Don't ignore env.development as it's a template
 !env.development
 
