@@ -7,8 +7,7 @@ import { CustomersModule } from './v1/customers/customers.module';
 import { HealthController } from './health/health.controller';
 import { databaseUri } from './config/database.config';
 import { OrdersModule } from './v1/orders/orders.module';
-import { OrdersController } from './orders/orders.controller';
-import { OrdersService } from './orders/orders.service';
+import { ProductsModule } from './v1/products/products.module';
 
 @Module({
   imports: [
@@ -16,8 +15,9 @@ import { OrdersService } from './orders/orders.service';
     UsersModule,
     CustomersModule,
     OrdersModule,
+    ProductsModule,
   ],
-  controllers: [AppController, HealthController, OrdersController],
-  providers: [AppService, OrdersService],
+  controllers: [AppController, HealthController],
+  providers: [AppService],
 })
 export class AppModule {}
