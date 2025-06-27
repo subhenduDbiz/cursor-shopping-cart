@@ -145,4 +145,34 @@ This will create:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Running the NestJS Application
+
+1. **Install dependencies:**
+   ```sh
+   npm install
+   ```
+
+2. **Start the application in development mode:**
+   ```sh
+   npm run start:dev
+   ```
+   This will start the server with hot-reloading enabled.
+
+3. **Start the application in production mode:**
+   ```sh
+   npm run start:prod
+   ```
+   This will run the compiled code from the `dist` directory.
+
+4. **Access the API:**
+   By default, the API will be available at:
+   ```
+   http://localhost:5002
+   ```
+
+5. **Access Swagger API docs:**
+   ```
+   http://localhost:5002/api-docs
+   ``` 
